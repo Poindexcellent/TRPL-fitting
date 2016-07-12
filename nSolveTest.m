@@ -2,7 +2,7 @@
 
 %% Plot DeltaN vs. depth:
 
-changeplot;
+changePlotTRPL;
 f1 = figure;
 a1 = axes;
 

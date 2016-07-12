@@ -1,86 +1,109 @@
-function fitOutput = fitPL(fitThis,timeData,PLdata)
-% % function fitPL(fitThis,weights)
+function fitOutput = fitPL(fitThis,timeData,PLdata,fitTypes)
 
-% I'll worry about weights later; they're not that important right now.
+%     fitPL.m provides the framework for a fitting routine to fit PL
+%     data to solve for the excess carrier concentration (contained within
+%     subfunction 'nSolve').
 
-% (from Raf's code)
-% P = model parameters. Exact parameter set depends on pump
-%       Delta:      P = [tau, SRV, thick, alpha, R, difu, N, ~,     ~,  h, tShift, PLshift]
-%       Square:     P = [tau, SRV, thick, alpha, R, difu, N, ~,     T,  h, tShift, PLshift]
-%       Gaussian:   P = [tau, SRV, thick, alpha, R, difu, N, sigma, T,  h, tShift, PLshift]
+%     Created:          March 18, 2016, Jeremy R. Poindexter.
+%     Last modified:    July 11, 2016, Jeremy R. Poindexter.
 
 
-% % DefaultParams = [1E9 1E9*1E12 1E9*1E12^2,...
-DefaultParams = [1E7 0 0,...
-    0,...      %# SRV [4]
-    0.25,...     %# D [5]
+%%
+
+%%% 0. **Author's notes:
+%     - Add weights (step 6)
+%     - Complete reporting of radiative and Auger lifetime components
+%     - fix errors in fitPL when trying to fit for k2 and k3 recombination
+%     coefficients
+
+
+%%% 1. Assign default parameters, which are used if not specified by the user:
+
+DefaultParams = [1E7 1E7*1E12 1E7*1E12^2,...
+    0,...        %# SRV [4]
+    0.256,...    %# D [5]
     1E12,...     %# nBack [6]
     1E4,...      %# alpha [7]
     0.3,...      %# reflection [8]
     1000,...     %# thickness [9]
-    1,...        %# sigma
-    1,...        %# T
-    0,...        %# timeShift
-    0,...        %# PLshift
-    1E-25];      %# PL normalization factor
-lb = [0 0 0 0 1E-10 0 0 0 0.1 0 0 0 0 0];
-ub = [Inf Inf Inf Inf 1E10 Inf Inf 1 1E20 Inf Inf Inf Inf Inf];
+    1,...        %# sigma [10]
+    1,...        %# T [11]
+    0,...        %# timeShift [12]
+    0,...        %# PLshift [13]
+    1E-25];      %# PL normalization factor [14]
+lb = [0 0 0 0 0 0 0 0 0.1 0 0 0 0 0];
+ub = [Inf Inf Inf Inf Inf Inf Inf 1 1E20 Inf Inf Inf Inf Inf];
 
-% % lb = [0 0 0 0 0.25 0 0 0 0.1 0 0 0 0 0];
-% % ub = [Inf Inf Inf 1E8 Inf Inf Inf 1 1E20 Inf Inf Inf Inf Inf];
-% % lb = [];
-% % ub = [];
+ParamsNames = {'SRH coefficient (s^{-1})',...
+    'radiative coefficient (s^{-1}cm^{-3})',...
+    'Auger coefficient (s^{-1}cm^{-6})', 'SRV (cm/s)', 'D (cm^2/s)',...
+    'nBack (cm^{-3})', 'alpha (cm^{-1})', 'reflection', 'thickness (nm)',...
+    'sigma', 'T', 'timeShift', 'PLshift', 'PL normalization factor'};
 
 
-ParamsNames = {'SRH coefficient (s^{-1})', 'radiative coefficient',...
-    'Auger coefficient', 'SRV (cm/s)', 'D (cm^2/s)', 'nBack (cm^{-3})',...
-    'alpha (cm^{-1})', 'reflection', 'thickness (nm)', 'sigma', 'T',...
-    'timeShift', 'PLshift', 'PL normalization factor'};
-
-% '1' = fitThis; '0' = don't fitThis (i.e., fix this parameter)
-% % fitThis = [1 0 0 ...     %# recombination coefficients
-% %     0 ...      %# SRV
-% %     0 ...      %# D
-% %     0 ...      %# nBack
-% %     0 ...      %# alpha
-% %     0 ...      %# reflection
-% %     0 ...      %# thickness
-% %     0 ...      %# sigma
-% %     0 ...      %# T
-% %     0 ...      %# timeShift
-% %     0 ...      %# PLshift
-% %     0];        %# PL normalization factor
+%%% 1-opt. Optional step to override 'fitThis' (useful for debugging):
+%{
+% For 'fitThis', '1' = fit this parameter; '0' = do not fit this parameter.
+fitThis = [1 0 0 ...     %# recombination coefficients
+    0 ...      %# SRV
+    1 ...      %# D
+    0 ...      %# nBack
+    0 ...      %# alpha
+    0 ...      %# reflection
+    0 ...      %# thickness
+    0 ...      %# sigma
+    0 ...      %# T
+    0 ...      %# timeShift
+    0 ...      %# PLshift
+    0];        %# PL normalization factor
 % % fitThis = ones(14,1);
+%}
+
+
+%%% 2. Additional variable declarations:
 fitThis = logical(fitThis);
 PLfitParams = DefaultParams;
 NewParams = DefaultParams;
 
+genType     = fitTypes{1};
+diffType    = fitTypes{2};
+recombType  = fitTypes{3};
+injectType  = fitTypes{4};
+
+
+%%% 2-opt. Optional variable declarations:
+%{
 genType = 'delta';
+diffType = 'p-type';
+recombType = 'A';
 injectType = 'low';
+%}
 
-%%% for timeData later, need prompts to select ONLY the data to be fitted from the broader data
-
-
-
-opts = optimoptions('lsqcurvefit','Display','iter-detailed','FunValCheck','on','TolX',1E-10,...
-    'TolFun',1E-10,'MaxFunEvals',1000,'Diagnostics','on','FiniteDifferenceType','forward');
+%%% 3. Define options for fitting, then perform fitting (using 'lsqcurvefit').
+opts = optimoptions('lsqcurvefit','Display','iter-detailed',...
+    'FunValCheck','on','TolX',1E-10,'TolFun',1E-10,'MaxFunEvals',1000,...
+    'Diagnostics','on','FiniteDifferenceType','forward');
 
 [PLcalcParams,resnorm,residual,exitflag,output,lambda,jacobian] = ...
-    lsqcurvefit(@PLfunc,PLfitParams(fitThis),timeData,PLdata,lb(fitThis),ub(fitThis),opts);
+    lsqcurvefit(@PLfunc,PLfitParams(fitThis),timeData,PLdata,...
+    lb(fitThis),ub(fitThis),opts);
 
 
-
+%%% 4. Update the new parameters, and display the results:
 NewParams(fitThis) = PLcalcParams;
 
 fprintf('FITTING RESULTS:\n-------------------\n')
 for zz = find(fitThis)
     fprintf('%35s = \t%1.4g\n',ParamsNames{zz},NewParams(zz))
+    % Report any lifetimes (if they were fitting parameters):
+    % **complete for radiative and Auger components
     if zz == 1
-        fprintf('%35s = \t%1.4g\n', 'SRH lifetime', 1/NewParams(zz));
+        fprintf('%35s = \t%1.4g\n', 'SRH lifetime (ns)', 1/NewParams(zz)*1E9);
     end
 end
 
 
+%%% 5. Return the results:
 fitOutput = struct;
 fitOutput.NewParams = NewParams;
 fitOutput.resnorm = resnorm;
@@ -91,15 +114,18 @@ fitOutput.lambda = lambda;
 fitOutput.jacobian = jacobian;
 
 
+%%% 6. Define the 'PLfunc' sub-function:
     function PLfuncOut = PLfunc(PLfuncParams,tData)
         
 % %         weights = ones(length(tData));        %# hard-coded weighting values
 % %         tWindow = [tData(1) tData(end)];
         
-
+        % Fit only the 'fitThis' parameters:
         PLfitParams(fitThis) = PLfuncParams;
         
-        PLfuncOut = nSolve(PLfitParams,tData,genType,injectType);
+        % Call 'nSolve':
+        PLfuncOut = nSolve(PLfitParams,tData,...
+            genType,diffType,recombType,injectType);
         
 % %         PLfuncOut = PLfuncOut.*sqrt(weights);
         

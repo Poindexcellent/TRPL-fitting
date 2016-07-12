@@ -21,28 +21,27 @@ function PLcalcOut = nSolve(Params,tData,genType,diffType,recombType,injectType)
 
 %%
 
+
 %%% 0. **Author's notes:
 %     - Revisit / test different boundary conditions for SRV
-%     - Consider applying injection dependence to SRV
-%     - Continue troubleshooting non-convergence of fitting PL normalization
-%     factor
+%     - 
 
 
 %%% 0-opt. Optional step to override 'DefaultParams' (useful for debugging):
 %{
-DefaultParams = [1E7 0 0,...
-    0,...      %# SRV [4]
-    0.256,...      %# D [5]
-    1E12,...      %# nBack [6]
-    1E4,...      %# alpha [7]
-    0.3,...      %# reflection [8]
-    1000,...      %# thickness [9]
-    1,...      %# sigma
-    1,...      %# T
-    0,...      %# timeShift
-    0,...      %# PLshift
-    1E-25];    %# PL normalization factor [14]  
-Params = DefaultParams;
+% % DefaultParams = [1E7 0 0,...
+% %     0,...      %# SRV [4]
+% %     0.25,...      %# D [5]
+% %     1E12,...      %# nBack [6]
+% %     1E4,...      %# alpha [7]
+% %     0.3,...      %# reflection [8]
+% %     1000,...      %# thickness [9]
+% %     1,...      %# sigma
+% %     1,...      %# T
+% %     0,...      %# timeShift
+% %     0,...      %# PLshift
+% %     1E-25];    %# PL normalization factor [14]  
+% % Params = DefaultParams;
 %}
 
 
@@ -54,7 +53,7 @@ nBack       = Params(6);       % background carrier concentration (cm^{-3})
 alpha       = Params(7);       % absorption coefficient (cm^{-1})
 reflection  = Params(8);       % reflection
 thickness   = Params(9);       % film thickness (nm)
-% % normFactor  = Params(14);  % PL normalization factor. Currently not fit.
+normFactor  = Params(14);      % PL normalization factor. Currently not used.
 
 
 %%% 1-opt. Optional step to override parameters (useful for debugging):
@@ -79,7 +78,7 @@ meshFactor = 0.2;                    %# hard-coded "mesh factor" (set <0.25)
 
 
 %%% 3. Determine diffusivity, from which time mesh is initialized: 
-Dcalc = diffFunc(diffType,diffValIn,nBack,injectType);
+Dcalc = diffFunc('p-type',diffValIn,nBack,injectType);
 dt = meshFactor*dY^2/Dcalc*1E9;     % time increment to step by (ns)
 timeVect = tData(1):dt:tData(end);  % time vector (ns)
 
@@ -113,9 +112,11 @@ if strcmpi(genType,'delta')
     DeltaN(:,1) = generation(:,1) - nBack;
 end
 
+
 % 5a-opt. Display a waitbar to show calculation progress (useful if debugging)
 % % wb_ = waitbar(0, 'Calculating excess carrier concentration...',...
 % %     'name', 'nSolve.m progress');
+
 
 % Time loop:
 for jj = 2:numTPts
@@ -135,6 +136,7 @@ for jj = 2:numTPts
             + generation(kk,jj) - recombination);
     end
     
+        
     % Apply boundary conditions:
     % ** May want to make SRV a function of n later on
     
@@ -158,23 +160,21 @@ end
 % % delete(wb_)
 
 
-%%% 6. Calculate PL(t) from the excess carrier concentration:
-% Account for film reabsorption:
-reabsorpVectdY = exp(-alpha*depthVect/1E7)*dY;
+%%% Calculate the PL from Delta_n:
 
-% Calculate PL normalization factor
-normFactor = 1/((DeltaN(:,1)').^2*reabsorpVectdY);
-% % normFactor = 1E-25;        %# optional hard-coded normalization factor
+reabsorpVectdY = exp(-alpha*depthVect/1E7)*dY;      % account for film reabsorption
+normFactor = 1/((DeltaN(:,1)').^2*reabsorpVectdY);      %# hard-coded normalization factor
+% % normFactor = 1E-25;                                 %# hard-coded normalization factor
 
 PLcalc = normFactor*((DeltaN').^2)*reabsorpVectdY;
 PLcalcOut = interp1(timeVect,PLcalc,tData,'linear','extrap');
 
-
-%%% 7. Optional helpful testing:
 % % nSolveTest;
-% % 
+
 % % figure;
 % % semilogy(tData,PLcalcOut);
 % % grid on
+
+
 
 end

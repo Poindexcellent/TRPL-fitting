@@ -1,3 +1,4 @@
+function ModelTRPL(recombFunc,genFunc,diffFunc)
 
 %     ModelTRPL.m analyzes and fits time-resolved photoluminescence (TRPL)
 %     data to a model incorporating generation, diffusion, and recombination.
@@ -13,24 +14,21 @@
 %     Author's notes, used to note places for future improvement (as
 %     distinguished from comments), are indicated by a double asterisk '**'.
 % 
-%     More information to be added later for version 2.0.
+%     More information to be added later for version 1.0.
 % 
 %     Created January 29, 2016, Jeremy R. Poindexter
 %     Last modified July 11, 2016, Jeremy R. Poindexter
-%     Current version: v1.0
+%     Current version: v0.1
 
 %% 0. **Version improvement notes:
-%     1/29/2016 - 7/10/2016: v0.1
-%     7/11/2016 - present: v1.0
+%     1/29/2016 - 7/11/2016: v0.1
 % 
 %     To improve in future versions:
-%     - read a subset of data from figure rather than workspace (Section 1)
+%     - read data from figure rather than workspace (Section 1)
 %     - implement selection of parameters via GUI and/or dialog boxes
 %     (Sections 2-5)
-%     - implement ambipolar diffusion (Section 3)
-%     - test n^2 and n^3 recombination terms (Section 4)
-%     - complete parameter "reporting" (Section 7)
-%     - implement error and sensitivity analysis (Section 8)
+%     - implement ambipolar diffusion (section 3)
+%     - test n^2 and n^3 recombination terms (section 4)
 
     
 %% 1. Set up data for analysis in new figure.
@@ -39,9 +37,6 @@
 % visible. Set this up to only analyze one curve at a time. If you find
 % multiple visible curves, include some option / prompt to ask "which curve do
 % you want to analyze?" or something similar.
-
-% **For timeData, need prompts to select ONLY the data to be fitted from
-% the broader data set
 
 
 %% 2. Define generation.
@@ -72,10 +67,6 @@ injectType = 'low';         %# temporary 'injectType' declaration
 % which is ultimately the output needed.
 
 
-%%% 3a-temp. Temporary hard-coded recombination type:
-diffType = 'p-type';
-
-
 %% 4. Define recombination.
 
 %** The hard one. In high injection, there are \Delta_n^2 and \Delta_n^3 terms.
@@ -89,13 +80,10 @@ diffType = 'p-type';
 % 'switch/case' functions.
 
 
-%%% 4a-temp. Temporary hard-coded recombination type:
-recombType = 'A';
-
 % Open a dialog box to choose options:
 
-%%% **NEED TO GET THE FOLLOWING SECTION (for GUI) WORKING BETTER:
-%{
+%%% **NEED TO GET THIS WORKING BETTER.
+
 % % d_ = dialog('Position',[300 300 400 400],'Name','Recombination.');
 % % xpos = -600;    %# screen x-position of dialog box
 % % ypos = 300;     %# screen y-position of dialog box
@@ -127,7 +115,7 @@ recombType = 'A';
 % %     'Position',[dwidth/2-35 20 70 25],...
 % %     'String','Close',...
 % %     'Callback','delete(gcf)');
-%}
+
 
 
 %% 5. Define boundary conditions (SRV).
@@ -136,14 +124,13 @@ recombType = 'A';
 % as an option. Boundary conditions could be passed to a function like
 % 'SRVcalc' or something, or simply incorprated into 'nSolve' directly.
 
-
 %% 5-temp. Temporary declaration of parameters to fit (until GUI works)
 
 
-% For 'fitThis', '1' = fit this parameter; '0' = do not fit this parameter.
+% For 'fitThis', 1 = fit this parameter; '0' = do not fit this parameter.
 fitThis = [1 0 0 ...     %# recombination coefficients
     0 ...      %# SRV
-    0 ...      %# D
+    1 ...      %# D
     0 ...      %# nBack
     0 ...      %# alpha
     0 ...      %# reflection
@@ -155,15 +142,30 @@ fitThis = [1 0 0 ...     %# recombination coefficients
     0];        %# PL normalization factor
 
 
+%% 6A-temp. Use finite-difference method to solve for carrier concentration.
+
+% **Solve carrier concentration as a function of x, and t. 2D matrix. Refer to
+% outside function (e.g., 'nSolve') which handles many different cases of
+% recombFunc, genFunc, and diffFunc. Build this from the ground up.
+
+
+%% 6B-temp. Calculate PL(t) from carrier concentration.
+
+% **Use finite difference method to calculate integral, or just use a simple
+% trapzsum function (I forget the actual name, which is probably different).
+% There's only one of these so... could define it here, at the end of this
+% function, or in a different function. 'DeltaNtoPL.m'?
+
+
 %% 6. Run PL fitting routine (see fitPL.m).
+
 
 % % timeData = linspace(0,10,101);            %# trial time data
 % % PLdata = exp(-timeData/0.8);              %# trial PL data
 
 
-%%% 6a. Call 'fitPL' PL fitting routine:
-fitTypes = {genType diffType recombType injectType};
-fitPLparams = fitPL(fitThis,timeData,PLdata,fitTypes);
+%%% 6a. Run PL fitting routine:
+fitPLparams = fitPL(fitThis,timeData,PLdata);
 
 
 %%% 6b. Calculate fitted TRPL:
@@ -173,14 +175,13 @@ ParamsNames = {'SRH coefficient (s^{-1})', 'radiative coefficient',...
     'timeShift', 'PLshift', 'PL normalization factor'};
 
 % **I'll need to update 'genType' and 'injectType' sometime.
-fittedPL = nSolve(fitPLparams.NewParams,timeData,...
-    genType,diffType,recombType,injectType);
+fittedPL = nSolve(fitPLparams.NewParams,timeData,genType,injectType);
 
 
 %% 7. Plot, report, and format the results.
 
 
-%%% 7a. Generate figure:
+%%% 7a. Generate figure and axes (with subplots):
 changePlotTRPL;     % script to change plot defaults
 
 figure('Color','w','Position',[200 100 1000 600]);
@@ -188,24 +189,18 @@ figure('Color','w','Position',[200 100 1000 600]);
 PLdataColor = [0.7 0.7 0.7];        %# plot display color of original PL data
 PLmarker = 2;                       %# plot marker size of original PL data
 
-
-%%% 7b. Plot the original PL data:
 s1 = subplot(1,3,1:2);
 o1 = semilogy(timeData,PLdata,'o','Color',PLdataColor,'MarkerSize',PLmarker);
 o1.DisplayName = 'PL data';
-hold(s1,'on')
+hold(s1,'on');
 
-
-%%% 7c. Plot the fitted result:
 o2 = semilogy(timeData,fittedPL,'--k');
 o2.DisplayName = 'fit';
 xlabel('time (ns)')
 ylabel('normalized PL intensity')
-grid on
+grid(sa,'on')
 legend({o1.DisplayName, o2.DisplayName})
 
-
-%%% 7d. Display the fit parameters:
 s2 = subplot(1,3,3);
 Xtext = -0.2;
 Ytext = 1;
@@ -227,8 +222,25 @@ for yy = find(fitThis)
 end
 
 
-%% 8. Error and sensitivity analysis
-
-% **Need to figure out what to implement and how.
 
 
+% % 
+% % text(sb2,Xtext,Ytext,['\color[rgb]{' num2str(ColourSet(ll,1)) ',' num2str(ColourSet(ll,2)) ',' num2str(ColourSet(ll,3)) '}'...
+% %         '\tau_1 = ' num2str(BiexpOutParams{ll}(2),'%.3f') '\pm' ...
+% %         num2str((BiErrorInFit(2,2)-BiErrorInFit(2,1))/2,'%.3f') ' ns;    '...
+% %         '\tau_2 = ' num2str(BiexpOutParams{ll}(4),'%.3f') '\pm' ...
+% %         num2str((BiErrorInFit(4,2)-BiErrorInFit(4,1))/2,'%.3f') ' ns'],...
+% %         'Fontsize',12,'Units','Normalized');
+
+
+%% **END FITTING ROUTINE**
+
+
+%% 7. Report all the parameters, calculate lifetime(s)
+
+
+%% 8. Report error and perform some fancy sensitivity analysis if you want
+
+
+
+end

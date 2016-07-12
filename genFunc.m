@@ -1,7 +1,7 @@
 function G = genFunc(genType,ref,alpha,beamParams,depthVect,timeVect)
 
-% genFunc produces a vector 'genFuncOut' that is the calculated generation (at the illumination wavelength) as a
-% function of depth, specified by 'YPts'.
+% genFunc produces a vector 'genFuncOut' that is the calculated generation (at
+% the illumination wavelength) as a function of depth, specified by 'YPts'.
 
 % ref = reflectance at wavelength of interest
 % alpha = absorption coefficient at wavelength of interest (cm^-1)
@@ -45,7 +45,7 @@ G = zeros(YPts,TPts);
 switch lower(genType)
     case 'delta'
         for aa = 1:YPts
-            %%% MAYBE FIX DEFINITION FOR DELTA FUNCTION BASED ON WHAT RAF DOES IN numFC?
+            % **MAYBE FIX DEFINITION FOR DELTA FUNCTION BASED ON WHAT RAF DOES IN numFC?
             G(aa,1) = photonFlux*(alpha)*(1-ref)*exp(-alpha2*depthVect(aa));
         end
 

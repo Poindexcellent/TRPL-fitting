@@ -1,11 +1,13 @@
 function D = diffFunc(diffType,diffValIn,nIn,injectType)
 
-% diffFunc produces a scalar 'diffFuncOut' that is the calculated diffusion coefficient given a certain set of assumptions
-% (specified by the 'diffType' tag) and the injection level (specified by nIn).
+% diffFunc produces a scalar 'diffFuncOut' that is the calculated diffusion
+% coefficient given a certain set of assumptions (specified by the 'diffType'
+% tag) and the injection level (specified by nIn).
 
 % Description of input arguments:
 
-% 'diffType' = a character variable that describes the type of diffusivity to calculate. It can have the following
+% 'diffType' = a character variable that describes the type of diffusivity to
+% calculate. It can have the following
 % values:
 % A) "p-type" - diffusivity calculated for minority electrons
 % B) "n-type" - diffusivity calculated for minority holes

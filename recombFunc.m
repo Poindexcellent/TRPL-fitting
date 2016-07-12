@@ -1,8 +1,9 @@
 function R = recombFunc(recombType,rateConstants)
 
-% recombFunc produces a m-by-1 vector 'recombFuncOut' that contains the rate constant coefficients of the recombination
-% expression. The recombination mechanism to try (and thus the size of 'recombFuncOut') is determined by the tag
-% 'recombType'.
+% recombFunc produces a m-by-1 vector 'recombFuncOut' that contains the rate
+% constant coefficients of the recombination expression. The recombination
+% mechanism to try (and thus the size of 'recombFuncOut') is determined by the
+% tag 'recombType'.
 
 % Description of input arguments:
 % 'recombType' = a character variable that describes the user-specified recombination model to try.
