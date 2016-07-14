@@ -16,8 +16,8 @@
 %     More information to be added later for version 2.0.
 % 
 %     Created January 29, 2016, Jeremy R. Poindexter
-%     Last modified July 11, 2016, Jeremy R. Poindexter
-%     Current version: v1.0
+%     Last modified July 13, 2016, Jeremy R. Poindexter
+%     Current version: v1.1
 
 %% 0. **Version improvement notes:
 %     1/29/2016 - 7/10/2016: v0.1
@@ -91,6 +91,9 @@ diffType = 'p-type';
 
 %%% 4a-temp. Temporary hard-coded recombination type:
 recombType = 'A';
+% % recombType = 'D';
+% % recombType = 'E';
+% % recombType = 'C';
 
 % Open a dialog box to choose options:
 
@@ -167,14 +170,35 @@ fitPLparams = fitPL(fitThis,timeData,PLdata,fitTypes);
 
 
 %%% 6b. Calculate fitted TRPL:
-ParamsNames = {'SRH coefficient (s^{-1})', 'radiative coefficient',...
-    'Auger coefficient', 'SRV (cm/s)', 'D (cm^2/s)', 'nBack (cm^{-3})',...
-    'alpha (cm^{-1})', 'reflection', 'thickness (nm)', 'sigma', 'T',...
-    'timeShift', 'PLshift', 'PL normalization factor'};
+ParamsNames = {'SRH coefficient (s^{-1})',...
+    'radiative coefficient (s^{-1}cm^3)',...
+    'Auger coefficient (s^{-1}cm^6)', 'SRV (cm/s)', 'D (cm^2/s)',...
+    'nBack (cm^{-3})', 'alpha (cm^{-1})', 'reflection', 'thickness (nm)',...
+    'sigma', 'T', 'timeShift', 'PLshift', 'PL normalization factor'};
+
+lifetimeNames = {'SRH', 'radiative', 'Auger'};
 
 % **I'll need to update 'genType' and 'injectType' sometime.
-fittedPL = nSolve(fitPLparams.NewParams,timeData,...
-    genType,diffType,recombType,injectType);
+[fittedPL, fittedDeltaN] = nSolve(fitPLparams.NewParams,timeData,fitTypes);
+
+
+%%% 6c. Calculate lifetimes:
+avgDeltaN = mean(mean(DeltaN));     % the average over both x and t
+[rContribute, lifetimes] = deal(ones(3,1));
+
+lifetimes(1) = 1E9/fitPLparams.NewParams(1);
+lifetimes(2) = 1E9/(fitPLparams.NewParams(2)*avgDeltaN);
+lifetimes(3) = 1E9/(fitPLparams.NewParams(3)*avgDeltaN^2);
+
+
+%%% 6d. Calculate contributions to total recombination rate:
+rTotal = (avgDeltaN*ones(1,3)).^(1:3)*...
+    [fitPLparams.NewParams(1);
+    fitPLparams.NewParams(2);
+    fitPLparams.NewParams(3)];
+rContribute(1) = fitPLparams.NewParams(1)*avgDeltaN/rTotal;
+rContribute(2) = fitPLparams.NewParams(2)*avgDeltaN^2/rTotal;
+rContribute(3) = fitPLparams.NewParams(3)*avgDeltaN^3/rTotal;
 
 
 %% 7. Plot, report, and format the results.
@@ -209,7 +233,7 @@ legend({o1.DisplayName, o2.DisplayName})
 s2 = subplot(1,3,3);
 Xtext = -0.2;
 Ytext = 1;
-textColor = copper(14);
+textColor = hsv(length(fitThis))*0.6;
 set(s2,'YTick','')
 set(s2,'Visible','off')
 
@@ -217,13 +241,14 @@ for yy = find(fitThis)
     text(Xtext,Ytext-0.05*yy,sprintf('%s = %1.4g\n', ParamsNames{yy}, ...
         fitPLparams.NewParams(yy)),'Color',textColor(yy,:),...
         'FontSize',14,'FontWeight','bold')
-    % Report any lifetimes (if they were fitting parameters):
-    % **complete for radiative and Auger components
-    if yy == 1
-        text(Xtext,0.1,sprintf('%s = %3.1f\n', 'SRH lifetime (ns)',...
-            1E9*1/fitPLparams.NewParams(yy)),'Color',textColor(yy,:),...
-            'FontSize',14,'FontWeight','bold')
+    % Report any lifetimes and contributions to recombination rate:
+    if yy < 4
+        text(Xtext,0.2-0.05*yy,sprintf('%s = %3.1f (%2.1f %%)\n',...
+            [lifetimeNames{yy} ' lifetime (ns)'],lifetimes(yy),...
+            100*rContribute(yy)),...
+            'Color',textColor(yy,:),'FontSize',14,'FontWeight','bold')
     end
+    
 end
 
 

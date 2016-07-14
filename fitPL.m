@@ -5,7 +5,7 @@ function fitOutput = fitPL(fitThis,timeData,PLdata,fitTypes)
 %     subfunction 'nSolve').
 
 %     Created:          March 18, 2016, Jeremy R. Poindexter.
-%     Last modified:    July 11, 2016, Jeremy R. Poindexter.
+%     Last modified:    July 13, 2016, Jeremy R. Poindexter.
 
 
 %%
@@ -18,9 +18,11 @@ function fitOutput = fitPL(fitThis,timeData,PLdata,fitTypes)
 
 
 %%% 1. Assign default parameters, which are used if not specified by the user:
+% **I will need to bring this to one level higher in the functions, i.e. to
+% ModelTRPL, once I have better GUI-style parameter selection.
 
-DefaultParams = [1E7 1E7*1E12 1E7*1E12^2,...
-    0,...        %# SRV [4]
+DefaultParams = [1E7 1E7*1E-12 0*1E1*(1E-12)^2,...
+    1,...        %# SRV [4]
     0.256,...    %# D [5]
     1E12,...     %# nBack [6]
     1E4,...      %# alpha [7]
@@ -35,8 +37,8 @@ lb = [0 0 0 0 0 0 0 0 0.1 0 0 0 0 0];
 ub = [Inf Inf Inf Inf Inf Inf Inf 1 1E20 Inf Inf Inf Inf Inf];
 
 ParamsNames = {'SRH coefficient (s^{-1})',...
-    'radiative coefficient (s^{-1}cm^{-3})',...
-    'Auger coefficient (s^{-1}cm^{-6})', 'SRV (cm/s)', 'D (cm^2/s)',...
+    'radiative coefficient (s^{-1}cm^3)',...
+    'Auger coefficient (s^{-1}cm^6)', 'SRV (cm/s)', 'D (cm^2/s)',...
     'nBack (cm^{-3})', 'alpha (cm^{-1})', 'reflection', 'thickness (nm)',...
     'sigma', 'T', 'timeShift', 'PLshift', 'PL normalization factor'};
 
@@ -65,24 +67,20 @@ fitThis = logical(fitThis);
 PLfitParams = DefaultParams;
 NewParams = DefaultParams;
 
-genType     = fitTypes{1};
-diffType    = fitTypes{2};
-recombType  = fitTypes{3};
-injectType  = fitTypes{4};
-
 
 %%% 2-opt. Optional variable declarations:
 %{
-genType = 'delta';
-diffType = 'p-type';
-recombType = 'A';
-injectType = 'low';
+fitTypes{1} = 'delta';
+fitTypes{2} = 'p-type';
+fitTypes{3} = 'A';
+fitTypes{4} = 'low';
 %}
 
 %%% 3. Define options for fitting, then perform fitting (using 'lsqcurvefit').
 opts = optimoptions('lsqcurvefit','Display','iter-detailed',...
-    'FunValCheck','on','TolX',1E-10,'TolFun',1E-10,'MaxFunEvals',1000,...
-    'Diagnostics','on','FiniteDifferenceType','forward');
+    'FunValCheck','off','TolX',1E-10,'TolFun',1E-10,'MaxFunEvals',1000,...
+    'Diagnostics','on','FiniteDifferenceType','forward',...
+    'TypicalX',PLfitParams(fitThis));
 
 [PLcalcParams,resnorm,residual,exitflag,output,lambda,jacobian] = ...
     lsqcurvefit(@PLfunc,PLfitParams(fitThis),timeData,PLdata,...
@@ -95,11 +93,12 @@ NewParams(fitThis) = PLcalcParams;
 fprintf('FITTING RESULTS:\n-------------------\n')
 for zz = find(fitThis)
     fprintf('%35s = \t%1.4g\n',ParamsNames{zz},NewParams(zz))
-    % Report any lifetimes (if they were fitting parameters):
-    % **complete for radiative and Auger components
-    if zz == 1
-        fprintf('%35s = \t%1.4g\n', 'SRH lifetime (ns)', 1/NewParams(zz)*1E9);
-    end
+% %     % Report any lifetimes (if they were fitting parameters):
+% %     % **complete for radiative and Auger components
+% %     if zz == 1
+% %         fprintf('%35s = \t%1.4g\n', 'SRH lifetime (ns)', 1/NewParams(zz)*1E9);
+% %     end
+% %     
 end
 
 
@@ -124,8 +123,7 @@ fitOutput.jacobian = jacobian;
         PLfitParams(fitThis) = PLfuncParams;
         
         % Call 'nSolve':
-        PLfuncOut = nSolve(PLfitParams,tData,...
-            genType,diffType,recombType,injectType);
+        [PLfuncOut,~] = nSolve(PLfitParams,tData,fitTypes);
         
 % %         PLfuncOut = PLfuncOut.*sqrt(weights);
         
