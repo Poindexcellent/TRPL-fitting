@@ -21,18 +21,32 @@ function fitOutput = fitPL(fitThis,timeData,PLdata,fitTypes)
 % **I will need to bring this to one level higher in the functions, i.e. to
 % ModelTRPL, once I have better GUI-style parameter selection.
 
-DefaultParams = [1E7 1E7*1E-12 0*1E1*(1E-12)^2,...
+DefaultParams = [1E7 1E7*1E-12 0E7*1E-12^2,...
     1,...        %# SRV [4]
-    0.256,...    %# D [5]
+    0.512,...    %# D [5]
     1E12,...     %# nBack [6]
     1E4,...      %# alpha [7]
-    0.3,...      %# reflection [8]
+    0.146,...      %# reflection [8]
+    1000,...     %# thickness [9]
+    1,...      %# sigma
+    1,...      %# T
+    0,...      %# timeShift
+    0,...      %# PLshift
+    1E-25];    %# PL normalization factor [14]
+%{
+DefaultParams = [1E3 0*1E7*1E-12 0*1E1*(1E-12)^2,...   %# recomb. coeffs [1-3]
+    0,...        %# SRV [4]
+    0.25,...    %# D [5]
+    1E12,...     %# nBack [6]
+    4.75E4,...      %# alpha [7]
+    0.146,...      %# reflection [8]
     1000,...     %# thickness [9]
     1,...        %# sigma [10]
     1,...        %# T [11]
     0,...        %# timeShift [12]
     0,...        %# PLshift [13]
     1E-25];      %# PL normalization factor [14]
+%}
 lb = [0 0 0 0 0 0 0 0 0.1 0 0 0 0 0];
 ub = [Inf Inf Inf Inf Inf Inf Inf 1 1E20 Inf Inf Inf Inf Inf];
 

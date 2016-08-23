@@ -90,8 +90,8 @@ diffType = 'p-type';
 
 
 %%% 4a-temp. Temporary hard-coded recombination type:
-recombType = 'A';
-% % recombType = 'D';
+% % recombType = 'A';
+recombType = 'D';
 % % recombType = 'E';
 % % recombType = 'C';
 
@@ -144,8 +144,8 @@ recombType = 'A';
 
 
 % For 'fitThis', '1' = fit this parameter; '0' = do not fit this parameter.
-fitThis = [1 0 0 ...     %# recombination coefficients
-    0 ...      %# SRV
+fitThis = [1 1 0 ...     %# recombination coefficients
+    1 ...      %# SRV
     0 ...      %# D
     0 ...      %# nBack
     0 ...      %# alpha
@@ -183,7 +183,7 @@ lifetimeNames = {'SRH', 'radiative', 'Auger'};
 
 
 %%% 6c. Calculate lifetimes:
-avgDeltaN = mean(mean(DeltaN));     % the average over both x and t
+avgDeltaN = mean(mean(fittedDeltaN));     % the average over both x and t
 [rContribute, lifetimes] = deal(ones(3,1));
 
 lifetimes(1) = 1E9/fitPLparams.NewParams(1);
@@ -221,7 +221,7 @@ hold(s1,'on')
 
 
 %%% 7c. Plot the fitted result:
-o2 = semilogy(timeData,fittedPL,'--k');
+o2 = semilogy(timeData,fittedPL,'-k');
 o2.DisplayName = 'fit';
 xlabel('time (ns)')
 ylabel('normalized PL intensity')

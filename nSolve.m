@@ -1,23 +1,22 @@
-function PLcalcOut = nSolve(Params,tData,genType,diffType,recombType,injectType)
+function [PLcalcOut,DeltaN] = nSolve(Params,tData,fitTypes)
 
 %     PLcalcOut.m calculates the excess carrier concentration in a film using
 %     the central finite difference method. It acceses different recombination,
 %     generation, and diffusion functions, which must be in the same directory.
 % 
 %     Description of input arguments:
-%     'time' = a vector specifying the time over which the data should be
-%         fitted (ns).
-%     'thickness' = the thickness of the film (nm).
-%     'rCoeffs' = recombination coefficients (k1, k2, k3).
-%     'nBack' = background carrier concentration
-%     'genType' = a string to specify type of generation function to use.
-%     'injectType' = a string to toggle injection dependence.
+%     'Params' = a list of fitting parameters (passed from fitPL.m).
+%     'tData' = the time vector over which to calculate the PL. This should be
+%       the same range as the actual data.
+%     'fitTypes' = a 1x4 cell matrix of strings, each of which specify
+%       parameters for the generation, diffusion, and recombination functions
+%       (plus injection dependence).
 % 
 %     Due to the way the 'time window' works currently, the data needs to be
 %     VERY well aligned with t = 0 and the laser pulse.
 % 
 %     Created:          February 5, 2016, Jeremy R. Poindexter.
-%     Last modified:    March 18, 2016, Jeremy R. Poindexter.
+%     Last modified:    July 13, 2016, Jeremy R. Poindexter.
 
 %%
 
@@ -30,18 +29,18 @@ function PLcalcOut = nSolve(Params,tData,genType,diffType,recombType,injectType)
 
 %%% 0-opt. Optional step to override 'DefaultParams' (useful for debugging):
 %{
-DefaultParams = [1E7 0 0,...
+DefaultParams = [8.48E6 4.1E-9 0E7*1E-12^2,...
     0,...      %# SRV [4]
-    0.256,...      %# D [5]
-    1E12,...      %# nBack [6]
-    1E4,...      %# alpha [7]
-    0.3,...      %# reflection [8]
-    1000,...      %# thickness [9]
+    0.256,...  %# D [5]
+    1E12,...   %# nBack [6]
+    4.75E4,...    %# alpha [7]
+    0.146,...    %# reflection [8]
+    1000,...   %# thickness [9]
     1,...      %# sigma
     1,...      %# T
     0,...      %# timeShift
     0,...      %# PLshift
-    1E-25];    %# PL normalization factor [14]  
+    1E-25];    %# PL normalization factor [14]
 Params = DefaultParams;
 %}
 
@@ -55,6 +54,11 @@ alpha       = Params(7);       % absorption coefficient (cm^{-1})
 reflection  = Params(8);       % reflection
 thickness   = Params(9);       % film thickness (nm)
 % % normFactor  = Params(14);  % PL normalization factor. Currently not fit.
+
+genType     = fitTypes{1};
+diffType    = fitTypes{2};
+recombType  = fitTypes{3};
+injectType  = fitTypes{4};
 
 
 %%% 1-opt. Optional step to override parameters (useful for debugging):
@@ -104,7 +108,6 @@ D = zeros(numYPts,numTPts);
 
 % 4d. Recombination function:
 recombCoeffs = recombFunc(recombType,rCoeffs);
-numR = length(recombCoeffs);
 
 
 %%% 5. Calculate the excess carrier concentration as a function of (x,t):
@@ -124,7 +127,7 @@ for jj = 2:numTPts
     % Depth loop:
     for kk = 2:(numYPts-1)
         % Calculate the recombination term:
-        recombination = DeltaN(kk,jj-1).^(1:numR)*recombCoeffs;
+        recombination = DeltaN(kk,jj-1).^(1:3)*recombCoeffs;
 
         % Determine the diffusion coefficient:
         D(kk,jj) = diffFunc(diffType,diffValIn,DeltaN(kk,jj-1),injectType);
@@ -170,11 +173,15 @@ PLcalc = normFactor*((DeltaN').^2)*reabsorpVectdY;
 PLcalcOut = interp1(timeVect,PLcalc,tData,'linear','extrap');
 
 
-%%% 7. Optional helpful testing:
-% % nSolveTest;
-% % 
-% % figure;
-% % semilogy(tData,PLcalcOut);
-% % grid on
+%%% 6-opt. Optional helpful testing:
+%{
+nSolveTest;
+
+figure;
+semilogy(tData,PLcalcOut);
+grid on
+hold on
+semilogy(timeData,PLdata,'o','color',[0.7 0.7 0.7],'MarkerSize',2)
+%}
 
 end
